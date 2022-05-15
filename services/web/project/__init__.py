@@ -7,6 +7,7 @@ import time
 import asyncio
 import aiohttp
 import nest_asyncio
+import numpy
 from flask import (
     Flask,
     jsonify,
@@ -96,7 +97,8 @@ async def do_bench(rps, seconds, rwratio, lbalgo):
             # print(str(time.time()) + ") " + str(i) + ":  queue")
             tasks.append(asyncio.create_task(get_url(session, url, task_resources[i], True)))
             # TODO poisson
-            await asyncio.sleep(1.0 / rps)
+            delay = numpy.random.poisson(1.0 / rps, 1)
+            await asyncio.sleep(delay[0])
         await asyncio.gather(*tasks)
         cntval = await get_url(session, choose_url(lbalgo), '/get', False)
         print(cntval['counter_value'])
