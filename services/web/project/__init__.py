@@ -114,7 +114,7 @@ async def do_bench(rps, seconds):
         for i in range(rps * seconds):
             url = choose_url()
             print(str(time.time()) + ") " + str(i) + ":  queue")
-            tasks.append(get_url(session, url, task_resources[i], i))
+            tasks.append(asyncio.create_task(get_url(session, url, task_resources[i], i)))
             # TODO poisson
             await asyncio.sleep(1.0 / rps)
         await asyncio.gather(*tasks)
@@ -131,7 +131,7 @@ def get_latency_percentiles(latencies, percentiles):
 def home():
     # inc_counter()
     # cntval = get_counter()
-    cntval = asyncio.run(do_bench(10, 4))
+    cntval = asyncio.run(do_bench(1000, 5))
     # print(str(latency_by_url))
     pctiles = [0.5, 0.9, 0.99]
     all_latencies = []
