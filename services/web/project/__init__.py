@@ -1,6 +1,8 @@
 import os
 import requests
 import json
+import random
+from collections import defaultdict
 from flask import (
     Flask,
     jsonify,
@@ -14,15 +16,19 @@ from flask import (
 app = Flask(__name__)
 app.config.from_object("project.config.Config")
 
-backend_url='http://web_backend'
-backend_ports=[4000]
+count_by_url = defaultdict(int)
+#backend_urls=['http://web_backend', 'http://web_backend2', 'http://web_backend3']
+backend_urls=['http://web_backend']
+backend_port=4000
 
-def choose_port():
+def choose_url():
     # TODO load balance?
-    return backend_ports[0]
+    return random.choice(backend_urls)
 
 def get_url(resource):
-    return backend_url + ':' + str(choose_port()) + resource
+    backend_url = choose_url()
+    count_by_url[backend_url] += 1
+    return backend_url + ':' + str(backend_port) + resource
 
 def get_counter():
     result = requests.get(get_url('/get'))
@@ -42,7 +48,8 @@ def home():
     return render_template(
         'home.html',
         title="Demo Site",
-        cntval=cntval
+        cntval=cntval,
+        cntByUrl=count_by_url
     )
 
 @app.route("/static/<path:filename>")
