@@ -17,8 +17,7 @@ app = Flask(__name__)
 app.config.from_object("project.config.Config")
 
 count_by_url = defaultdict(int)
-backend_urls=['http://web_backend:4000', 'http://web_backend2:4001']
-#backend_urls=['http://web_backend']
+backend_urls=['http://web_backend:4000', 'http://web_backend2:4001', 'http://web_backend3:4002']
 
 def choose_url():
     # TODO load balance?

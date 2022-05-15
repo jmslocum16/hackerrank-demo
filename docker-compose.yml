@@ -13,6 +13,7 @@ services:
     depends_on:
       - web_backend
       - web_backend2
+      - web_backend3
 
   web_backend:
     build: ./services/web_backend
@@ -42,6 +43,21 @@ services:
     depends_on:
       - db
  
+  web_backend3:
+    build: ./services/web_backend
+    command: python manage_backend.py run -h 0.0.0.0
+    volumes:
+      - ./services/web_backend/:/usr/src/backend/
+    ports:
+      - 4002:4002
+    env_file:
+      - ./.env.dev
+    environment:
+      - BACKEND_PORT=4002
+    depends_on:
+      - db
+ 
+
   db:
     image: postgres:13-alpine
     volumes:
