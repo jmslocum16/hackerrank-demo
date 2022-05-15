@@ -4,11 +4,17 @@
     <div class="container">
         <h1>{{title}}</h1>
         <p>Counter: {{cntval}}</p>
-        <table>
-        {% for key, value in cntByUrl.items() %}
+        <table border='1' style='border-collapse:collapse'>
+          <th>
+            {% for h in headers %}
+              <td>{{ h }}</td>
+            {% endfor %}
+          </th>
+        {% for i in info %}
           <tr>
-            <td>{{ key }}</td>
-            <td>{{ value }}</td>
+             {% for j in i %}
+             <td>{{ j }}</td>
+             {% endfor %}
           </tr>
         {% endfor %}
         </table>

@@ -65,7 +65,7 @@ def choose_url():
     global next_url
     # TODO load balance?
     # random
-    # return random.choice(backend_urls)
+    return random.choice(backend_urls)
 
     # round robin
     #url = backend_urls[next_url]
@@ -73,7 +73,7 @@ def choose_url():
     #return url
 
     # shortest queue
-    return get_shortest_queue()
+    # return get_shortest_queue()
 
 def make_url(resource):
     backend_url = choose_url()
@@ -125,7 +125,7 @@ async def do_bench(rps, seconds):
     
 def get_latency_percentiles(latencies, percentiles):
     sl = sorted(latencies)
-    return [str(sl[int(len(sl) * p)]) for p in percentiles]
+    return [sl[int(len(sl) * p)] for p in percentiles]
 
 @app.route("/")
 def home():
@@ -136,20 +136,30 @@ def home():
     pctiles = [0.5, 0.9, 0.99]
     all_latencies = []
     all_cnt = 0
+    info = []
+    headers = ['Server', 'Request Count', 'Median (ms)', 'P90 (ms)', 'P99 (ms)']
     for x, y in latency_by_url.items():
         server_pctiles = get_latency_percentiles(y, pctiles)
         server_cnt = count_by_url[x]
         all_cnt += server_cnt
-        print(x + ' = ' + str(server_cnt) + ': (' + ' '.join([str(x) for x in pctiles]) + '): ( ' + ' '.join(server_pctiles) + ')')
+        # serverInfo = x + ' = ' + str(server_cnt) + ': (' + ' '.join([str(x) for x in pctiles]) + '): ( ' + ' '.join(server_pctiles) + ')'
+        serverInfo = [x, str(server_cnt)] + [("%.2f" % (1000.0 * p)) for p in server_pctiles]
+        # print(serverInfo)
+        print(' '.join(serverInfo))
+        info.append(serverInfo)
         all_latencies += y
     all_pctiles = get_latency_percentiles(all_latencies, pctiles)
-    print('overall: = ' + str(all_cnt) + ' (' + ' '.join([str(x) for x in pctiles]) + '): ( ' + ' '.join(all_pctiles) + ')')
+    # overallInfo = 'overall: = ' + str(all_cnt) + ' (' + ' '.join([str(x) for x in pctiles]) + '): ( ' + ' '.join(all_pctiles) + ')'
+    overallInfo = ['Overall', str(all_cnt)] + [("%.2f" % (1000.0 * p)) for p in all_pctiles]
+    print(' '.join(overallInfo))
+    info = [overallInfo] + info
     
     return render_template(
         'home.html',
         title="Demo Site",
         cntval=cntval,
-        cntByUrl=count_by_url
+        headers=headers,
+        info=info   
     )
 
 
