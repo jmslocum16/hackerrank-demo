@@ -22,31 +22,37 @@ nest_asyncio.apply()
 app = Flask(__name__)
 app.config.from_object("project.config.Config")
 
+
 count_by_url = defaultdict(int)
 latency_by_url = defaultdict(list)
 outstanding_by_url = defaultdict(int)
+
+def reset_data():
+    count_by_url.clear()
+    latency_by_url.clear()
+    outstanding_by_url.clear()
+    for u in backend_urls:
+        outstanding_by_url[u] = 0
+
+
+
 backend_urls=['http://web_backend:4000', 'http://web_backend2:4001', 'http://web_backend3:4002']
 
 
 # async stuff
-async def get_url(session, url, resource, i):
-    print(str(time.time()) + ") " + str(i) + ":  start")
+async def get_url(session, url, resource, do_stats):
     start_time = time.perf_counter()
-    count_by_url[url] += 1
-    outstanding_by_url[url] += 1
+    if (do_stats):
+        count_by_url[url] += 1
+        outstanding_by_url[url] += 1
     async with session.get(url + resource, ssl=False) as response:
-        print(str(time.time()) + ") " + str(i) + ":  sent")
         obj = await response.json()
-        print(str(time.time()) + ") " + str(i) + ":  done")
-        print(obj)
         t = time.perf_counter() - start_time
-        latency_by_url[url].append(t)
-        outstanding_by_url[url] -= 1
+        if (do_stats):
+            latency_by_url[url].append(t)
+            outstanding_by_url[url] -= 1
         return obj
 
-
-for u in backend_urls:
-    outstanding_by_url[u] = 0
 
 def get_shortest_queue():
     min_v = 100000000
@@ -61,49 +67,23 @@ def get_shortest_queue():
     return random.choice(min_results)
 
 next_url = 0
-def choose_url():
+def choose_url(lbalgo):
     global next_url
-    # TODO load balance?
-    # random
-    return random.choice(backend_urls)
 
-    # round robin
-    #url = backend_urls[next_url]
-    #next_url = (next_url + 1) %  len(backend_urls)
-    #return url
+    if ("random" == lbalgo):
+        return random.choice(backend_urls)
+    elif ("roundrobin" == lbalgo):
+        url = backend_urls[next_url]
+        next_url = (next_url + 1) %  len(backend_urls)
+        return url
+    elif ("jsq" == lbalgo):
+        return get_shortest_queue()
+    else:
+        print('invalid lbalgo ' + lbalgo)
+        raise RuntimeError()
 
-    # shortest queue
-    # return get_shortest_queue()
-
-def make_url(resource):
-    backend_url = choose_url()
-    count_by_url[backend_url] += 1
-    return backend_url + resource
-
-"""
-def get_counter():
-    result = requests.get(make_url('/get'))
-    print(result.text)
-    cntval = int(json.loads(result.text)['counter_value'])
-    print(str(cntval))
-    return cntval
-    
-def inc_counter():
-    result = requests.post(make_url('/inc'))
-    print(result.text)
-"""
-
-"""
-async def do_bench():
-    async with aiohttp.ClientSession() as session:   
-        tasks = [get_url(session, choose_url(), '/inc') for i in range(100)]
-        await asyncio.gather(*tasks)
-        cntval = await get_url(session, choose_url(), '/get')
-        print(cntval['counter_value'])
-        return cntval['counter_value']
-"""
-async def do_bench(rps, seconds):
-    write_pct = 0.2
+async def do_bench(rps, seconds, rwratio, lbalgo):
+    write_pct = 1.0 - rwratio
     write_tasks = int(rps * seconds * write_pct)
     read_tasks = rps * seconds - write_tasks
     task_resources = ['/inc' for i in range(write_tasks)] + ['/get' for j in range (read_tasks)]
@@ -112,27 +92,36 @@ async def do_bench(rps, seconds):
     async with aiohttp.ClientSession() as session:
         tasks = []
         for i in range(rps * seconds):
-            url = choose_url()
-            print(str(time.time()) + ") " + str(i) + ":  queue")
-            tasks.append(asyncio.create_task(get_url(session, url, task_resources[i], i)))
+            url = choose_url(lbalgo)
+            # print(str(time.time()) + ") " + str(i) + ":  queue")
+            tasks.append(asyncio.create_task(get_url(session, url, task_resources[i], True)))
             # TODO poisson
             await asyncio.sleep(1.0 / rps)
         await asyncio.gather(*tasks)
-        cntval = await get_url(session, choose_url(), '/get', 100000)
+        cntval = await get_url(session, choose_url(lbalgo), '/get', False)
         print(cntval['counter_value'])
         return cntval['counter_value']
 
     
 def get_latency_percentiles(latencies, percentiles):
     sl = sorted(latencies)
+    if len(latencies) == 0:
+        return [0.0 for p in percentiles]
     return [sl[int(len(sl) * p)] for p in percentiles]
+
+
+last_valid = False
+last_run_key = None
+
+history = []
 
 @app.route("/")
 def home():
-    # inc_counter()
-    # cntval = get_counter()
-    cntval = asyncio.run(do_bench(1000, 5))
-    # print(str(latency_by_url))
+    global last_valid
+    global last_run_key
+    # just to get counter value
+    cntval = asyncio.run(do_bench(0,0,0.5,"random"))
+
     pctiles = [0.5, 0.9, 0.99]
     all_latencies = []
     all_cnt = 0
@@ -153,20 +142,38 @@ def home():
     overallInfo = ['Overall', str(all_cnt)] + [("%.2f" % (1000.0 * p)) for p in all_pctiles]
     print(' '.join(overallInfo))
     info = [overallInfo] + info
-    
+
+    if (last_valid):
+        history.append([last_run_key] + overallInfo[1:])
+
+    last_valid = False
+
     return render_template(
         'home.html',
         title="Demo Site",
         cntval=cntval,
         headers=headers,
-        info=info   
+        info=info,  
+        history=history[::-1]
     )
-
 
 @app.route("/genreq", methods=['POST'])
 def genreq():
-    # TODO DO ASYNC STUFF HERE
-    pass    
+    global last_valid
+    global last_run_key
+    rps = int(request.form['rps'])
+    runtime = int(request.form['runtime'])
+    rwratio = float(request.form['rwratio'])
+    lbalgo = request.form['lbalgo']
+
+    reset_data()
+
+    cntval = asyncio.run(do_bench(rps, runtime, rwratio, lbalgo))
+    
+    last_valid = True
+    last_run_key = ",".join([str(rps), str(runtime), str(rwratio), lbalgo])
+
+    return redirect(url_for('home'))
 
 @app.route("/static/<path:filename>")
 def staticfiles(filename):
