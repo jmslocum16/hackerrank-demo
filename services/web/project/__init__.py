@@ -63,19 +63,31 @@ def inc_counter():
 
 async def do_bench():
     async with aiohttp.ClientSession() as session:   
-        tasks = [get_url(session, choose_url(), '/inc') for i in range(10)]
+        tasks = [get_url(session, choose_url(), '/inc') for i in range(100)]
         await asyncio.gather(*tasks)
         cntval = await get_url(session, choose_url(), '/get')
         print(cntval['counter_value'])
         return cntval['counter_value']
     
+def get_latency_percentiles(latencies, percentiles):
+    sl = sorted(latencies)
+    return [str(sl[int(len(sl) * p)]) for p in percentiles]
 
 @app.route("/")
 def home():
     # inc_counter()
     # cntval = get_counter()
     cntval = asyncio.run(do_bench())
-    print(str(latency_by_url))
+    # print(str(latency_by_url))
+    pctiles = [0.5, 0.9, 0.99]
+    all_latencies = []
+    for x, y in latency_by_url.items():
+        server_pctiles = get_latency_percentiles(y, pctiles)
+        print(x + ': (' + ' '.join([str(x) for x in pctiles]) + '): ( ' + ' '.join(server_pctiles) + ')')
+        all_latencies += y
+    all_pctiles = get_latency_percentiles(all_latencies, pctiles)
+    print('overall: (' + ' '.join([str(x) for x in pctiles]) + '): ( ' + ' '.join(all_pctiles) + ')')
+    
     return render_template(
         'home.html',
         title="Demo Site",
