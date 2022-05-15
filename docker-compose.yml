@@ -12,6 +12,7 @@ services:
       - ./.env.dev
     depends_on:
       - web_backend
+      - web_backend2
 
   web_backend:
     build: ./services/web_backend
@@ -22,6 +23,22 @@ services:
       - 4000:4000
     env_file:
       - ./.env.dev
+    environment:
+      - BACKEND_PORT=4000
+    depends_on:
+      - db
+ 
+  web_backend2:
+    build: ./services/web_backend
+    command: python manage_backend.py run -h 0.0.0.0
+    volumes:
+      - ./services/web_backend/:/usr/src/backend/
+    ports:
+      - 4001:4001
+    env_file:
+      - ./.env.dev
+    environment:
+      - BACKEND_PORT=4001
     depends_on:
       - db
  

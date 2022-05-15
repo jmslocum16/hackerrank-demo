@@ -17,9 +17,8 @@ app = Flask(__name__)
 app.config.from_object("project.config.Config")
 
 count_by_url = defaultdict(int)
-#backend_urls=['http://web_backend', 'http://web_backend2', 'http://web_backend3']
-backend_urls=['http://web_backend']
-backend_port=4000
+backend_urls=['http://web_backend:4000', 'http://web_backend2:4001']
+#backend_urls=['http://web_backend']
 
 def choose_url():
     # TODO load balance?
@@ -28,7 +27,7 @@ def choose_url():
 def get_url(resource):
     backend_url = choose_url()
     count_by_url[backend_url] += 1
-    return backend_url + ':' + str(backend_port) + resource
+    return backend_url + resource
 
 def get_counter():
     result = requests.get(get_url('/get'))
