@@ -41,7 +41,7 @@ def get_counter_req():
     return jsonify(counter_value=cntval);
 
 
-@app.route("/inc", methods=['POST'])
+@app.route("/inc", methods=['GET', 'POST'])
 def inc_counter_req():
     inc_counter()
     return jsonify(success="true")
