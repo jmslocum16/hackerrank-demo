@@ -27,11 +27,13 @@ app.config.from_object("project.config.Config")
 count_by_url = defaultdict(int)
 latency_by_url = defaultdict(list)
 outstanding_by_url = defaultdict(int)
+delay_inject_by_server = defaultdict(int)
 
 def reset_data():
     count_by_url.clear()
     latency_by_url.clear()
     outstanding_by_url.clear()
+    delay_inject_by_server.clear()
     for u in backend_urls:
         outstanding_by_url[u] = 0
 
@@ -46,6 +48,11 @@ async def get_url(session, url, resource, do_stats):
     if (do_stats):
         count_by_url[url] += 1
         outstanding_by_url[url] += 1
+
+    delayms = delay_inject_by_server[url]
+    if (delayms > 0.0):
+        await asyncio.sleep(delayms / 1000.0)
+
     async with session.get(url + resource, ssl=False) as response:
         obj = await response.json()
         t = time.perf_counter() - start_time
@@ -167,13 +174,20 @@ def genreq():
     runtime = int(request.form['runtime'])
     rwratio = float(request.form['rwratio'])
     lbalgo = request.form['lbalgo']
+    delayserver = request.form['delayserver']
+    delayms = request.form['delayamt']
 
     reset_data()
+    last_run_key = ", ".join([str(rps), str(runtime), str(rwratio), lbalgo])
+    last_valid = True
+
+    if (delayserver and delayms):
+       sidx = int(delayserver)
+       delay_inject_by_server[backend_urls[sidx]] = float(delayms)
+       last_run_key += ", delay="+delayms
 
     cntval = asyncio.run(do_bench(rps, runtime, rwratio, lbalgo))
     
-    last_valid = True
-    last_run_key = ",".join([str(rps), str(runtime), str(rwratio), lbalgo])
 
     return redirect(url_for('home'))
 

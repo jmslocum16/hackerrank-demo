@@ -23,17 +23,23 @@
         <div>
             <form method="post" action="genreq">
                 <label for="rps">Requests Per Second</label>
-                <input type="text" name="rps" placeholder="1000"/><br/>
+                <input type="text" name="rps" value="1000"/><br/>
                 <label for="runtime">Runtime (Seconds)</label>
-                <input type="text" name="runtime" placeholder="5"/><br/>
-                <label for="rps">Read/Write ratio</label>
-                <input type="text" name="rwratio" placeholder="0.9"/><br/>
-                <label for="rps">Load Balancing Algorithm</label>
+                <input type="text" name="runtime" value="5"/><br/>
+                <label for="rwratio">Read/Write ratio</label>
+                <input type="text" name="rwratio" value="0.9"/><br/>
+                <label for="lbalgo">Load Balancing Algorithm</label>
                 <select name="lbalgo" id="lbalgo_select">
                     <option value="random">Random</option>
                     <option value="roundrobin">Round Robin</option>
                     <option value="jsq">Shortest Queue</option>
                 </select>
+                <br/>
+                <label for="delayserver">Delay Injection Server</label>
+                <input type="text" name="delayserver" value=""/>
+                <label for="delayamt">Delay Amount (ms)</label>
+                <input type="text" name="delayamt" value=""/>
+                <br/>
                 <button type="submit">Run</button>
             </form>
         </div>
